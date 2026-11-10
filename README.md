@@ -30,6 +30,8 @@ Espressif ESP32 and ESP-IDF.
 ### 1. Fundamentals
 
 - [ESP32 Hardware](docs/01-hardware.md)
+- [ESP-IDF Fundamentals](docs/02-esp-idf.md)
+
 
 Additional notes and examples will be added progressively.
 
