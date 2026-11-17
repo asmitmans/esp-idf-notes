@@ -295,4 +295,281 @@ Explicit dependencies improve modularity and maintainability.
 
 ---
 
+## 3. Project Configuration
+
+ESP-IDF uses Kconfig to manage compile-time configuration options.
+
+The configuration system allows applications and components to
+define settings without modifying their source code.
+
+### 3.1. Configuration Files
+
+The main configuration files are:
+
+| File | Purpose |
+|---|---|
+| `Kconfig` | Defines configuration options for a component |
+| `Kconfig.projbuild` | Defines options displayed at the top level of the configuration menu |
+| `sdkconfig` | Stores the current project configuration |
+| `sdkconfig.defaults` | Defines project-specific default values |
+| `sdkconfig.h` | Generated C header containing configuration macros |
+
+The configuration system discovers Kconfig files from the
+components included in the project.
+
+Configuration values are made available to C code and CMake
+during the build process.
+
+### 3.2. Configuring a Project
+
+Open the interactive configuration menu:
+
+```bash
+idf.py menuconfig
+```
+
+The menu displays configuration options defined by ESP-IDF
+and the project's components.
+
+Configuration changes are saved in `sdkconfig`.
+
+The `sdkconfig` file should not be edited manually because
+configuration options may have dependencies and constraints.
+
+### 3.3. Using Configuration Values in C
+
+ESP-IDF generates `sdkconfig.h` during project configuration.
+
+This header provides access to configuration values through
+macros prefixed with `CONFIG_`.
+
+Example:
+
+```c
+#include "sdkconfig.h"
+
+#if CONFIG_FREERTOS_UNICORE
+    // Single-core FreeRTOS configuration
+#else
+    // Multi-core FreeRTOS configuration
+#endif
+```
+
+Configuration values are resolved at build time, not runtime.
+
+Changing a configuration option may require recompiling
+affected components.
+
+### 3.4. Project Defaults
+
+The `sdkconfig.defaults` file defines configuration values
+that override the defaults provided by Kconfig.
+
+Example:
+
+```text
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+```
+
+When a project is configured without an existing `sdkconfig`,
+ESP-IDF uses these values to initialize the configuration.
+
+Once a value has been explicitly configured in `sdkconfig`,
+changing its entry in `sdkconfig.defaults` does not override
+that existing value.
+
+The `sdkconfig.defaults` file is useful for maintaining
+reproducible configuration across development environments.
+
+### 3.5. Defining Custom Configuration Options
+
+Application components can define their own configuration
+options using a `Kconfig` file.
+
+Example:
+
+```text
+menu "Sensor Configuration"
+
+    config SENSOR_POLL_INTERVAL
+        int "Sensor polling interval (ms)"
+        default 1000
+        range 100 60000
+
+endmenu
+```
+
+This defines an integer configuration option with:
+
+- A name: `SENSOR_POLL_INTERVAL`.
+- A default value: `1000`.
+- An allowed range: 100–60000.
+- A configurable entry in `menuconfig`.
+
+The resulting value is accessible in C:
+
+```c
+#include "sdkconfig.h"
+
+#define SENSOR_INTERVAL_MS CONFIG_SENSOR_POLL_INTERVAL
+```
+
+Custom Kconfig options provide compile-time configuration
+without hardcoding values in application source files.
+
+They are useful when a parameter must be selected during
+firmware configuration rather than modified at runtime.
+
+### 3.6. Configuration and Version Control
+
+ESP-IDF projects can use different approaches to managing
+configuration under version control.
+
+- `sdkconfig` preserves the complete resolved configuration.
+- `sdkconfig.defaults` records selected project defaults.
+- `Kconfig` defines the available configuration options.
+
+For reusable examples, `sdkconfig.defaults` provides a compact
+way to document required configuration values.
+
+Generated build files and intermediate artifacts should not
+be committed to version control.
+
+Configuration management must account for the ESP-IDF version,
+target SoC, and project requirements.
+
+### Referencias
+
+Agregar al final del apartado `## References`:
+
+- [ESP-IDF Project Configuration](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/api-guides/kconfig/index.html)
+- [ESP-IDF Project Configuration Guide](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/api-guides/kconfig/project-configuration-guide.html)
+
+---
+
+## 4. ESP-IDF Component Manager
+
+ESP-IDF Component Manager manages external component dependencies
+used by ESP-IDF projects.
+
+It supports dependencies from:
+
+- ESP Component Registry.
+- Git repositories.
+- Local directories.
+
+The Component Manager is integrated into the ESP-IDF build system
+and resolves dependencies during project configuration.
+
+### 4.1. Component Manifest
+
+External dependencies are declared in an `idf_component.yml`
+manifest file located in the root directory of a component.
+
+Example structure:
+
+```text
+my_project/
+├── CMakeLists.txt
+├── main/
+│   ├── CMakeLists.txt
+│   ├── idf_component.yml
+│   └── main.c
+└── managed_components/
+```
+
+Example manifest:
+
+```yaml
+dependencies:
+  example/cmp: ">=1.0.0"
+```
+
+This illustrative example declares a dependency on a component
+from the ESP Component Registry.
+
+The version constraint specifies the acceptable component versions.
+
+### 4.2. Adding Dependencies
+
+Dependencies can be added manually to `idf_component.yml`
+or through the ESP-IDF command-line interface.
+
+Example:
+
+```bash
+idf.py add-dependency "example/cmp>=1.0.0"
+```
+
+The command adds the dependency to the main component.
+
+The Component Manager resolves the required versions and
+downloads the dependencies during project configuration.
+
+To explicitly reconfigure the project:
+
+```bash
+idf.py reconfigure
+```
+
+### 4.3. Generated Files
+
+The Component Manager uses two important project resources:
+
+| Resource | Purpose |
+|---|---|
+| `managed_components/` | Downloaded external components |
+| `dependencies.lock` | Resolved dependency versions |
+
+The `managed_components/` directory contains downloaded
+dependencies and should not be modified manually.
+
+The `dependencies.lock` file records the resolved dependencies
+to support reproducible builds.
+
+Both resources are maintained automatically by the
+Component Manager.
+
+### 4.4. Version Control
+
+Recommended version control practices:
+
+- Commit `idf_component.yml` to declare dependencies.
+- Commit `dependencies.lock` when reproducible dependency
+  versions are required.
+- Exclude `managed_components/` from Git.
+- Avoid manually modifying generated dependency files.
+
+Example `.gitignore` entry:
+
+```gitignore
+managed_components/
+```
+
+The Component Manager can restore downloaded dependencies
+using the project manifests and lock file.
+
+### 4.5. CMake vs. Component Manager
+
+CMake and Component Manager have different responsibilities.
+
+| Tool | Responsibility |
+|---|---|
+| CMake | Registers components, sources, include paths, and build dependencies |
+| Component Manager | Resolves, downloads, and versions external components |
+| Kconfig | Defines compile-time configuration options |
+
+Built-in ESP-IDF components are normally declared through
+`REQUIRES` or `PRIV_REQUIRES` in CMake.
+
+External managed dependencies are declared through
+`idf_component.yml`.
+
+Both mechanisms integrate with the ESP-IDF build system.
+
+## References
+
+- [ESP-IDF Component Manager](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/api-guides/tools/idf-component-manager.html)
+- [Component Manifest Format](https://docs.espressif.com/projects/idf-component-manager/en/latest/reference/manifest_file.html)
+
 ---
