@@ -1,0 +1,21 @@
+# ESP-IDF build artifacts
+**/build/
+
+# Generated project configuration
+**/sdkconfig
+**/sdkconfig.old
+
+# Managed dependencies
+**/managed_components/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor
+.vscode/
+
+# OS files
+.DS_Store
