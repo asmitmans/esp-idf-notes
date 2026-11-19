@@ -573,3 +573,139 @@ Both mechanisms integrate with the ESP-IDF build system.
 - [Component Manifest Format](https://docs.espressif.com/projects/idf-component-manager/en/latest/reference/manifest_file.html)
 
 ---
+## 5. Version Control and Generated Files
+
+ESP-IDF projects contain source files, configuration files,
+and artifacts generated during the build process.
+
+Git should track the files required to reproduce a project,
+while excluding temporary files and local development artifacts.
+
+### 5.1. Files to Track
+
+The following files are normally included in version control:
+
+| File or directory | Purpose |
+|---|---|
+| `main/` | Application source code |
+| `components/` | Project-specific components |
+| `CMakeLists.txt` | Build configuration |
+| `Kconfig` | Component configuration definitions |
+| `sdkconfig.defaults` | Project configuration defaults |
+| `idf_component.yml` | External dependency declarations |
+| `dependencies.lock` | Resolved dependency versions, when appropriate |
+| `README.md` | Project documentation |
+
+The `sdkconfig` file requires special consideration.
+
+It contains the complete project configuration and can be
+committed when exact configuration values must be preserved.
+
+Alternatively, `sdkconfig.defaults` can define the required
+settings while allowing developers to generate their own
+`sdkconfig`.
+
+For simple, reusable examples, tracking `sdkconfig.defaults`
+is generally preferable.
+
+### 5.2. Generated and Local Files
+
+The following resources are normally excluded from Git:
+
+| File or directory | Reason |
+|---|---|
+| `build/` | Compiled binaries and intermediate artifacts |
+| `managed_components/` | Dependencies downloaded by Component Manager |
+| `sdkconfig.old` | Previous configuration backup |
+| `.vscode/` | Local editor settings |
+| Python virtual environments | Locally installed development tools |
+
+The `sdkconfig` file may also be excluded when the project
+uses `sdkconfig.defaults` instead.
+
+The `dependencies.lock` file is normally committed when
+dependencies are resolved from the ESP Component Registry
+or Git repositories.
+
+Projects using local dependency paths or configuration-dependent
+dependencies may require a different policy.
+
+### 5.3. Git Ignore Rules
+
+A `.gitignore` file defines which untracked files and directories
+Git should ignore.
+
+For a repository containing multiple ESP-IDF examples,
+the following rules can be placed in the repository root:
+
+```gitignore
+# ESP-IDF build artifacts
+**/build/
+
+# Generated project configuration
+**/sdkconfig
+**/sdkconfig.old
+
+# Managed dependencies
+**/managed_components/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor
+.vscode/
+```
+
+The `**/` patterns apply to matching directories or files
+at different levels of the repository.
+
+These rules keep generated files out of future commits.
+
+### 5.4. Removing Files from the Git Index
+
+A `.gitignore` rule does not automatically remove files
+already added to Git.
+
+To remove newly staged files from the staging area:
+
+```bash
+git restore --staged examples/
+```
+
+This preserves the files in the working directory.
+
+If generated files are already tracked, remove them from
+the Git index without deleting local copies:
+
+```bash
+git rm -r --cached examples/01-minimal-project/build/
+```
+
+After updating `.gitignore`, stage the intended files again:
+
+```bash
+git add .gitignore examples/
+```
+
+Review the staged changes before committing:
+
+```bash
+git status --short
+git diff --cached --stat
+git diff --cached --check
+```
+
+Only source code, project configuration, and documentation
+should be included in the commit.
+
+## References
+
+- [ESP-IDF Build System](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/api-guides/build-system.html)
+- [ESP-IDF Project Configuration](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/api-guides/kconfig/index.html)
+- [IDF Component Manager FAQ](https://docs.espressif.com/projects/idf-component-manager/en/latest/troubleshooting/faq.html)
+- [Component Manager Lock File](https://docs.espressif.com/projects/idf-component-manager/en/latest/reference/dependencies_lock.html)
+
+---
